@@ -34,6 +34,7 @@ public class CMISEndpoint extends DefaultEndpoint {
     private String password;
     private String repositoryId;
     private String url;
+    private boolean query;
 
     public CMISEndpoint() {
     }
@@ -52,6 +53,9 @@ public class CMISEndpoint extends DefaultEndpoint {
     }
 
     public Producer createProducer() throws Exception {
+        if (isQuery()) {
+            return new CMISQueryProducer(this);
+        }
         return new CMISProducer(this);
     }
 
@@ -98,7 +102,7 @@ public class CMISEndpoint extends DefaultEndpoint {
 
     public Session getSession() {
         SessionFactory sessionFactory = SessionFactoryImpl.newInstance();
-        Map<String, String> parameter = new HashMap<String, String>(); //parameter.put(SessionParameter.ATOMPUB_URL, " http://repo.opencmis.org/inmemory/atom/");
+        Map<String, String> parameter = new HashMap<String, String>();
         parameter.put(SessionParameter.ATOMPUB_URL, getUrl());
         parameter.put(SessionParameter.USER, getUserName());
         parameter.put(SessionParameter.PASSWORD, getPassword());
@@ -110,5 +114,13 @@ public class CMISEndpoint extends DefaultEndpoint {
         } else {
             return SessionFactoryImpl.newInstance().getRepositories(parameter).get(0).createSession();
         }
+    }
+
+    public boolean isQuery() {
+        return query;
+    }
+
+    public void setQuery(boolean query) {
+        this.query = query;
     }
 }

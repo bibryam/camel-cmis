@@ -94,16 +94,6 @@ public class CMISProducer extends DefaultProducer {
 
     private byte[] getBodyData(Message message) {
         return message.getBody(new byte [0].getClass());
-
-//
-//
-//        String content = message.getBody(String.class);
-//
-//        try {
-//            return content.getBytes("UTF-8");
-//        } catch (UnsupportedEncodingException e) {
-//            throw new RuntimeException(e);
-//        }
     }
 
     private String getMimeType(Message message) throws NoSuchHeaderException {
@@ -116,11 +106,6 @@ public class CMISProducer extends DefaultProducer {
 
     private Folder getFolderFromPathOrRoot(Exchange exchange, Session session) {
         String path = exchange.getIn().getHeader(CMISParams.CMIS_FOLDER_PATH, "/", String.class);
-//
-//        if (path.isEmpty()) {
-//            return session.getRootFolder();
-//        }
-
         try {
             return (Folder) session.getObjectByPath(path);
         } catch (CmisObjectNotFoundException e) {
