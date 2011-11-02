@@ -18,7 +18,6 @@ package org.apache.camel;
 
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.chemistry.opencmis.client.api.Session;
-import org.apache.chemistry.opencmis.client.api.SessionFactory;
 import org.apache.chemistry.opencmis.client.runtime.SessionFactoryImpl;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
@@ -30,11 +29,12 @@ import java.util.Map;
  * Represents a CMIS endpoint.
  */
 public class CMISEndpoint extends DefaultEndpoint {
-    private String userName;
+    private String username;
     private String password;
     private String repositoryId;
     private String url;
     private boolean query;
+    private Session session;
 
     public CMISEndpoint() {
     }
@@ -53,10 +53,11 @@ public class CMISEndpoint extends DefaultEndpoint {
     }
 
     public Producer createProducer() throws Exception {
-        if (isQuery()) {
-            return new CMISQueryProducer(this);
+        CMISSessionFacade cmisSessionFacade = new CMISSessionFacade(this.session);
+        if (this.query) {
+            return new CMISQueryProducer(this, cmisSessionFacade);
         }
-        return new CMISProducer(this);
+        return new CMISProducer(this, cmisSessionFacade);
     }
 
     public Consumer createConsumer(Processor processor) throws Exception {
@@ -67,60 +68,37 @@ public class CMISEndpoint extends DefaultEndpoint {
         return true;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
     public void setPassword(String password) {
         this.password = password;
-    }
-
-    public String getRepositoryId() {
-        return repositoryId;
     }
 
     public void setRepositoryId(String repositoryId) {
         this.repositoryId = repositoryId;
     }
 
-    public String getUserName() {
-        return userName;
-    }
-
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    public String getUrl() {
-        return url;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public void setUrl(String url) {
         this.url = url;
     }
 
-
-    public Session getSession() {
-        SessionFactory sessionFactory = SessionFactoryImpl.newInstance();
-        Map<String, String> parameter = new HashMap<String, String>();
-        parameter.put(SessionParameter.ATOMPUB_URL, getUrl());
-        parameter.put(SessionParameter.USER, getUserName());
-        parameter.put(SessionParameter.PASSWORD, getPassword());
-        parameter.put(SessionParameter.BINDING_TYPE, BindingType.ATOMPUB.value());
-
-        if (getRepositoryId() != null) {
-            parameter.put(SessionParameter.REPOSITORY_ID, getRepositoryId());
-            return SessionFactoryImpl.newInstance().createSession(parameter);
-        } else {
-            return SessionFactoryImpl.newInstance().getRepositories(parameter).get(0).createSession();
-        }
-    }
-
-    public boolean isQuery() {
-        return query;
-    }
-
     public void setQuery(boolean query) {
         this.query = query;
+    }
+
+    void initSession() {
+        Map<String, String> parameter = new HashMap<String, String>();
+        parameter.put(SessionParameter.BINDING_TYPE, BindingType.ATOMPUB.value());
+        parameter.put(SessionParameter.ATOMPUB_URL, this.url);
+        parameter.put(SessionParameter.USER, this.username);
+        parameter.put(SessionParameter.PASSWORD, this.password);
+        if (this.repositoryId != null) {
+            parameter.put(SessionParameter.REPOSITORY_ID, this.repositoryId);
+            this.session = SessionFactoryImpl.newInstance().createSession(parameter);
+        } else {
+            this.session = SessionFactoryImpl.newInstance().getRepositories(parameter).get(0).createSession();
+        }
     }
 }

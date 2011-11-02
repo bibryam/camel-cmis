@@ -1,20 +1,33 @@
-Camel CMIS Component Project
+Camel CMIS Component
 ====================
 
-Allows Apache CAMEL connect to CMIS supporting content repositories
+Enables Apache Camel to connect to CMIS supporting content repositories
 
-Example usage
+Example usage:
+
+1.Query cmis server using CMIS Query Language
 
 from("direct:a")
-    .body("SELECT * FROM cmis:document WHERE cmis:name = 'test1.txt'")
+    .body("SELECT * FROM cmis:document WHERE cmis:name LIKE 'test%'")
     .to("cmis://http://cmis.alfresco.com/cmisatom?username=admin&password=admin&repositoryId=371554cd-ac06-40ba-98b8-e6b60275cca7&query=true");
-    .to("cmis://http://http://localhost:8080/chemistry-opencmis-server-inmemory-war-0.5.0/");
+    .to("stream:out");
+
+The result of the query is in the body of the message as a List, where each item is Map containing all the properties of the node.
+Additionally it is also able to retrieve InputStream for the content itself if specified in the header as "CamelCMISRetrieveContent" true.
 
 
-Allows creation of documents and folder in CMIS repository.
+2. Create Folders and Documents on the CMIS server.
 
-Creates a CMIS document from message body and properties from headers. For document with content, mimetype or content type is required by CMIS specification.
+from("direct:start")
+    .process(new Processor() {
+        public void process(Exchange exchange) throws Exception {
+            exchange.getOut().setHeader("cmis:objectTypeId", "cmis:folder");
+            exchange.getOut().setHeader("cmis:name", "Test Folder");
+        }
+    })
+    .to("cmis://http://localhost:8080/chemistry-opencmis-server-inmemory-war-0.5.0/atom")
 
+Creates a CMIS document which content is message body and properties from headers. For document with content, mimetype or content type is required header.
 Creates folder if there is no message body or folder type is specified.
 Name header is required for both document and folder creation.
 Optional path header can specify in which location at create the new node. If not specified, the new node is created under the root folder.

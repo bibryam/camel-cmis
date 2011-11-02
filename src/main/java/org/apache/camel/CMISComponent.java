@@ -26,8 +26,9 @@ import java.util.Map;
 public class CMISComponent extends DefaultComponent {
 
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        Endpoint endpoint = new CMISEndpoint(uri, remaining, this);
+        CMISEndpoint endpoint = new CMISEndpoint(uri, remaining, this);
         setProperties(endpoint, parameters);
+        endpoint.initSession();
         return endpoint;
     }
 }

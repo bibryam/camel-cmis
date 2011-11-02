@@ -23,7 +23,6 @@ import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.SessionParameter;
 import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
-import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -119,13 +118,13 @@ public class CMISProducerTest extends CMISTestSupport {
         assertEquals("text/plain; charset=UTF-8", newNode.getPropertyValue(PropertyIds.CONTENT_STREAM_MIME_TYPE));
     }
 
-    @Test(expected = CmisInvalidArgumentException.class)
+    @Test(expected = ResolveEndpointFailedException.class)
     public void failConnectingToNonExistingRepository() throws Exception {
-        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?userName=admin&password=admin&repositoryId=NON_EXISTING_ID");
+        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?username=admin&password=admin&repositoryId=NON_EXISTING_ID");
         Producer producer = endpoint.createProducer();
 
         Exchange exchange = createExchangeWithInBody("Some content to be store");
-        exchange.getIn().getHeaders().put(CMISParams.CMIS_MIME_TYPE, "text/plain; charset=UTF-8");
+        exchange.getIn().getHeaders().put(CamelCMISParams.CMIS_MIME_TYPE, "text/plain; charset=UTF-8");
         exchange.getIn().getHeaders().put(PropertyIds.NAME, "test.txt");
         producer.process(exchange);
     }
@@ -137,7 +136,7 @@ public class CMISProducerTest extends CMISTestSupport {
         Exchange exchange = createExchangeWithInBody("Some content to be stored");
         exchange.getIn().getHeaders().put(PropertyIds.CONTENT_STREAM_MIME_TYPE, "text/plain; charset=UTF-8");
         exchange.getIn().getHeaders().put(PropertyIds.NAME, "test.file");
-        exchange.getIn().getHeaders().put(CMISParams.CMIS_FOLDER_PATH, existingFolderStructure);
+        exchange.getIn().getHeaders().put(CamelCMISParams.CMIS_FOLDER_PATH, existingFolderStructure);
 
         template.send(exchange);
         String newNodeId = exchange.getOut().getBody(String.class);
@@ -147,7 +146,6 @@ public class CMISProducerTest extends CMISTestSupport {
         assertEquals(existingFolderStructure + "/test.file", documentFullPath);
     }
 
-
     @Test
     public void failCreatingFolderAtNonExistingPath() throws Exception {
         String existingFolderStructure = "/No/Path/Here";
@@ -155,7 +153,7 @@ public class CMISProducerTest extends CMISTestSupport {
         Exchange exchange = createExchangeWithInBody(null);
         exchange.getIn().getHeaders().put(PropertyIds.NAME, "folder1");
         exchange.getIn().getHeaders().put(PropertyIds.OBJECT_TYPE_ID, "cmis:folder");
-        exchange.getIn().getHeaders().put(CMISParams.CMIS_FOLDER_PATH, existingFolderStructure);
+        exchange.getIn().getHeaders().put(CamelCMISParams.CMIS_FOLDER_PATH, existingFolderStructure);
 
         template.send(exchange);
         assertTrue(exchange.getException() instanceof RuntimeExchangeException);
@@ -171,7 +169,6 @@ public class CMISProducerTest extends CMISTestSupport {
         Session session = repository.createSession();
         return session.getObject(nodeId);
     }
-
 
     private String getDocumentContentAsString(String nodeId) throws Exception {
         CmisObject cmisObject = retrieveCMISObjectByIdFromServer(nodeId);
