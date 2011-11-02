@@ -9,11 +9,12 @@ Example usage:
 
 from("direct:a")
     .body("SELECT * FROM cmis:document WHERE cmis:name LIKE 'test%'")
-    .to("cmis://http://cmis.alfresco.com/cmisatom?username=admin&password=admin&repositoryId=371554cd-ac06-40ba-98b8-e6b60275cca7&query=true");
+    .to("cmis://http://localhost:8080/chemistry-opencmis-server-inmemory-war-0.5.0/atom?username=admin&password=admin&repositoryId=A1&query=true");
     .to("stream:out");
 
+To query CMIS server, create a producer by specifying query=true in the parameters and put the cmis query in the body of the message.
 The result of the query is in the body of the message as a List, where each item is Map containing all the properties of the node.
-Additionally it is also able to retrieve InputStream for the content itself if specified in the header as "CamelCMISRetrieveContent" true.
+Additionally it is also able to retrieve InputStream for the content itself if specified in the header as CamelCMISRetrieveContent true.
 
 
 2. Create Folders and Documents on the CMIS server.
@@ -25,7 +26,7 @@ from("direct:start")
             exchange.getOut().setHeader("cmis:name", "Test Folder");
         }
     })
-    .to("cmis://http://localhost:8080/chemistry-opencmis-server-inmemory-war-0.5.0/atom")
+    .to("cmis://http://localhost:8080/chemistry-opencmis-server-inmemory-war-0.5.0/atom?username=admin&password=admin&repositoryId=A1")
 
 Creates a CMIS document which content is message body and properties from headers. For document with content, mimetype or content type is required header.
 Creates folder if there is no message body or folder type is specified.
