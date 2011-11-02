@@ -109,7 +109,7 @@ public class CMISProducer extends DefaultProducer {
         try {
             return (Folder) session.getObjectByPath(path);
         } catch (CmisObjectNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeExchangeException("Path not found " + path, exchange, e);
         }
     }
 

@@ -147,6 +147,20 @@ public class CMISProducerTest extends CMISTestSupport {
         assertEquals(existingFolderStructure + "/test.file", documentFullPath);
     }
 
+
+    @Test
+    public void failCreatingFolderAtNonExistingPath() throws Exception {
+        String existingFolderStructure = "/No/Path/Here";
+
+        Exchange exchange = createExchangeWithInBody(null);
+        exchange.getIn().getHeaders().put(PropertyIds.NAME, "folder1");
+        exchange.getIn().getHeaders().put(PropertyIds.OBJECT_TYPE_ID, "cmis:folder");
+        exchange.getIn().getHeaders().put(CMISParams.CMIS_FOLDER_PATH, existingFolderStructure);
+
+        template.send(exchange);
+        assertTrue(exchange.getException() instanceof RuntimeExchangeException);
+    }
+
     private CmisObject retrieveCMISObjectByIdFromServer(String nodeId) throws Exception {
         SessionFactory sessionFactory = SessionFactoryImpl.newInstance();
         Map<String, String> parameter = new HashMap<String, String>();
