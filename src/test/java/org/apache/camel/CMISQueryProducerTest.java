@@ -1,18 +1,11 @@
 package org.apache.camel;
 
 import org.apache.chemistry.opencmis.client.api.Folder;
-import org.apache.chemistry.opencmis.client.api.Session;
-import org.apache.chemistry.opencmis.client.runtime.SessionFactoryImpl;
-import org.apache.chemistry.opencmis.commons.PropertyIds;
-import org.apache.chemistry.opencmis.commons.SessionParameter;
-import org.apache.chemistry.opencmis.commons.data.ContentStream;
-import org.apache.chemistry.opencmis.commons.enums.BindingType;
-import org.apache.chemistry.opencmis.commons.enums.VersioningState;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.*;
-import java.util.HashMap;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Map;
 
@@ -27,7 +20,7 @@ public class CMISQueryProducerTest extends CMISTestSupport {
 
     @Test
     public void queryServerForDocumentWithSpecificName() throws Exception {
-        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?query=true");
+        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?queryMode=true");
         Producer producer = endpoint.createProducer();
 
         Exchange exchange = createExchangeWithInBody("SELECT * FROM cmis:document WHERE cmis:name = 'test1.txt'");
@@ -40,7 +33,7 @@ public class CMISQueryProducerTest extends CMISTestSupport {
 
     @Test
     public void getResultCountFromHeader() throws Exception {
-        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?query=true");
+        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?queryMode=true");
         Producer producer = endpoint.createProducer();
 
         Exchange exchange = createExchangeWithInBody("SELECT * FROM cmis:document WHERE CONTAINS('Camel test content.')");
@@ -53,7 +46,7 @@ public class CMISQueryProducerTest extends CMISTestSupport {
 
     @Test
     public void limitNumberOfResultsWithReadSizeHeader() throws Exception {
-        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?query=true");
+        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?queryMode=true");
         Producer producer = endpoint.createProducer();
 
         Exchange exchange = createExchangeWithInBody("SELECT * FROM cmis:document WHERE CONTAINS('Camel test content.')");
@@ -67,7 +60,7 @@ public class CMISQueryProducerTest extends CMISTestSupport {
 
     @Test
     public void retrieveAlsoDocumentContent() throws Exception {
-        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?query=true");
+        Endpoint endpoint = context.getEndpoint("cmis://" + CMIS_ENDPOINT_TEST_SERVER + "?queryMode=true");
         Producer producer = endpoint.createProducer();
 
         Exchange exchange = createExchangeWithInBody("SELECT * FROM cmis:document WHERE cmis:name='test1.txt'");
@@ -80,47 +73,10 @@ public class CMISQueryProducerTest extends CMISTestSupport {
         assertEquals("This is the first Camel test content.", readFromStream(content));
     }
 
-    private String readFromStream(InputStream in) throws Exception {
-        StringBuilder result = new StringBuilder();
-        BufferedReader br = new BufferedReader(new InputStreamReader(in));
-
-        String strLine;
-        while ((strLine = br.readLine()) != null) {
-            result.append(strLine);
-        }
-        in.close();
-        return result.toString();
-    }
-
     private void populateServerWithContent() throws UnsupportedEncodingException {
-        Session session = getSession();
-        Folder newFolder = createFolderWithName(session, "CamelCmisTestFolder");
-        createTextDocument(session, newFolder, "This is the first Camel test content.", "test1.txt");
-        createTextDocument(session, newFolder, "This is the second Camel test content.", "test2.txt");
+        Folder newFolder = createFolderWithName("CamelCmisTestFolder");
+        createTextDocument(newFolder, "This is the first Camel test content.", "test1.txt");
+        createTextDocument(newFolder, "This is the second Camel test content.", "test2.txt");
     }
 
-    private void createTextDocument(Session session, Folder newFolder, String content, String fileName) throws UnsupportedEncodingException {
-        byte[] buf = content.getBytes("UTF-8");
-        ByteArrayInputStream input = new ByteArrayInputStream(buf);
-        ContentStream contentStream = session.getObjectFactory().createContentStream(fileName, buf.length, "text/plain; charset=UTF-8", input);
-
-        Map<String, Object> properties = new HashMap<String, Object>();
-        properties.put(PropertyIds.OBJECT_TYPE_ID, "cmis:document");
-        properties.put(PropertyIds.NAME, fileName);
-        newFolder.createDocument(properties, contentStream, VersioningState.NONE);
-    }
-
-    private Folder createFolderWithName(Session session, String folderName) {
-        Map<String, String> newFolderProps = new HashMap<String, String>();
-        newFolderProps.put(PropertyIds.OBJECT_TYPE_ID, "cmis:folder");
-        newFolderProps.put(PropertyIds.NAME, folderName);
-        return session.getRootFolder().createFolder(newFolderProps);
-    }
-
-    private Session getSession() {
-        Map<String, String> parameter = new HashMap<String, String>();
-        parameter.put(SessionParameter.ATOMPUB_URL, CMIS_ENDPOINT_TEST_SERVER);
-        parameter.put(SessionParameter.BINDING_TYPE, BindingType.ATOMPUB.value());
-        return SessionFactoryImpl.newInstance().getRepositories(parameter).get(0).createSession();
-    }
 }

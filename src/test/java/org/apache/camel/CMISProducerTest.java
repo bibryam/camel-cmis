@@ -17,20 +17,16 @@
 package org.apache.camel;
 
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.chemistry.opencmis.client.api.*;
-import org.apache.chemistry.opencmis.client.runtime.SessionFactoryImpl;
+import org.apache.chemistry.opencmis.client.api.CmisObject;
+import org.apache.chemistry.opencmis.client.api.Document;
+import org.apache.chemistry.opencmis.client.api.Folder;
 import org.apache.chemistry.opencmis.commons.PropertyIds;
-import org.apache.chemistry.opencmis.commons.SessionParameter;
-import org.apache.chemistry.opencmis.commons.data.ContentStream;
-import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
-
 public class CMISProducerTest extends CMISTestSupport {
+
+    @Produce(uri = "direct:start")
+    protected ProducerTemplate template;
 
     @Test
     public void storeMessageBodyAsTextDocument() throws Exception {
@@ -40,6 +36,7 @@ public class CMISProducerTest extends CMISTestSupport {
         exchange.getIn().getHeaders().put(PropertyIds.NAME, "test.file");
 
         template.send(exchange);
+
         String newNodeId = exchange.getOut().getBody(String.class);
         assertNotNull(newNodeId);
 
@@ -124,7 +121,7 @@ public class CMISProducerTest extends CMISTestSupport {
         Producer producer = endpoint.createProducer();
 
         Exchange exchange = createExchangeWithInBody("Some content to be store");
-        exchange.getIn().getHeaders().put(CamelCMISParams.CMIS_MIME_TYPE, "text/plain; charset=UTF-8");
+        exchange.getIn().getHeaders().put(CamelCMISConstants.CMIS_MIME_TYPE, "text/plain; charset=UTF-8");
         exchange.getIn().getHeaders().put(PropertyIds.NAME, "test.txt");
         producer.process(exchange);
     }
@@ -136,7 +133,7 @@ public class CMISProducerTest extends CMISTestSupport {
         Exchange exchange = createExchangeWithInBody("Some content to be stored");
         exchange.getIn().getHeaders().put(PropertyIds.CONTENT_STREAM_MIME_TYPE, "text/plain; charset=UTF-8");
         exchange.getIn().getHeaders().put(PropertyIds.NAME, "test.file");
-        exchange.getIn().getHeaders().put(CamelCMISParams.CMIS_FOLDER_PATH, existingFolderStructure);
+        exchange.getIn().getHeaders().put(CamelCMISConstants.CMIS_FOLDER_PATH, existingFolderStructure);
 
         template.send(exchange);
         String newNodeId = exchange.getOut().getBody(String.class);
@@ -153,41 +150,10 @@ public class CMISProducerTest extends CMISTestSupport {
         Exchange exchange = createExchangeWithInBody(null);
         exchange.getIn().getHeaders().put(PropertyIds.NAME, "folder1");
         exchange.getIn().getHeaders().put(PropertyIds.OBJECT_TYPE_ID, "cmis:folder");
-        exchange.getIn().getHeaders().put(CamelCMISParams.CMIS_FOLDER_PATH, existingFolderStructure);
+        exchange.getIn().getHeaders().put(CamelCMISConstants.CMIS_FOLDER_PATH, existingFolderStructure);
 
         template.send(exchange);
         assertTrue(exchange.getException() instanceof RuntimeExchangeException);
-    }
-
-    private CmisObject retrieveCMISObjectByIdFromServer(String nodeId) throws Exception {
-        SessionFactory sessionFactory = SessionFactoryImpl.newInstance();
-        Map<String, String> parameter = new HashMap<String, String>();
-        parameter.put(SessionParameter.ATOMPUB_URL, CMIS_ENDPOINT_TEST_SERVER);
-        parameter.put(SessionParameter.BINDING_TYPE, BindingType.ATOMPUB.value());
-
-        Repository repository = sessionFactory.getRepositories(parameter).get(0);
-        Session session = repository.createSession();
-        return session.getObject(nodeId);
-    }
-
-    private String getDocumentContentAsString(String nodeId) throws Exception {
-        CmisObject cmisObject = retrieveCMISObjectByIdFromServer(nodeId);
-        Document doc = (Document) cmisObject;
-        return getContentAsString(doc.getContentStream());
-    }
-
-    private static String getContentAsString(ContentStream stream) throws IOException {
-        InputStream inputStream = stream.getStream();
-        StringBuffer stringBuffer = new StringBuffer(inputStream.available());
-        int count;
-        byte[] buf2 = new byte[100];
-        while ((count = inputStream.read(buf2)) != -1) {
-            for (int i = 0; i < count; i++) {
-                stringBuffer.append((char) buf2[i]);
-            }
-        }
-        inputStream.close();
-        return stringBuffer.toString();
     }
 
     @Override
@@ -195,8 +161,9 @@ public class CMISProducerTest extends CMISTestSupport {
         return new RouteBuilder() {
             public void configure() {
                 from("direct:start")
-                        .to("cmis://" + CMIS_ENDPOINT_TEST_SERVER)
-                        .to("mock:result");
+                        .to("cmis://" + CMIS_ENDPOINT_TEST_SERVER);
+                        //.to("cmis://" + "http://cmis.alfresco.com/cmisatom?username=admin&password=admin&repositoryId=371554cd-ac06-40ba-98b8-e6b60275cca7")
+                        //.to("mock:result");
             }
         };
     }

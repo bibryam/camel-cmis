@@ -26,9 +26,21 @@ import java.util.Map;
 public class CMISComponent extends DefaultComponent {
 
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        CMISEndpoint endpoint = new CMISEndpoint(uri, remaining, this);
-        setProperties(endpoint, parameters);
-        endpoint.initSession();
+        boolean queryMode = removeQueryMode(parameters);
+
+
+        CMISSessionFacade sessionFacade = new CMISSessionFacade(remaining);
+        setProperties(sessionFacade, parameters);
+        sessionFacade.initSession();
+        CMISEndpoint endpoint = new CMISEndpoint(uri, this, sessionFacade);
+        endpoint.setQueryMode(queryMode);
         return endpoint;
+    }
+
+    private boolean removeQueryMode(Map<String, Object> parameters) {
+        if (parameters.containsKey("queryMode")) {
+            return Boolean.valueOf((String)parameters.remove("queryMode")) ;
+        }
+        return false;
     }
 }

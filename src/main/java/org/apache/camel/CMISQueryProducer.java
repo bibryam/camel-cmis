@@ -20,13 +20,11 @@ import org.apache.camel.impl.DefaultProducer;
 import org.apache.camel.util.ExchangeHelper;
 import org.apache.chemistry.opencmis.client.api.ItemIterable;
 import org.apache.chemistry.opencmis.client.api.QueryResult;
-import org.apache.chemistry.opencmis.commons.data.PropertyData;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,13 +43,13 @@ public class CMISQueryProducer extends DefaultProducer {
     public void process(Exchange exchange) throws Exception {
         List<Map<String, Object>> nodes = executeQuery(exchange);
         exchange.getOut().setBody(nodes);
-        exchange.getOut().setHeader(CamelCMISParams.CAMEL_CMIS_RESULT_COUNT, nodes.size());
+        exchange.getOut().setHeader(CamelCMISConstants.CAMEL_CMIS_RESULT_COUNT, nodes.size());
     }
 
     private List<Map<String, Object>> executeQuery(Exchange exchange) throws Exception {
         String query = ExchangeHelper.getMandatoryInBody(exchange, String.class);
-        boolean retrieveContent = exchange.getIn().getHeader(CamelCMISParams.CAMEL_CMIS_RETRIEVE_CONTENT, false, Boolean.class);
-        int readSize = exchange.getIn().getHeader(CamelCMISParams.CAMEL_CMIS_READ_SIZE, 0, Integer.class);
+        boolean retrieveContent = exchange.getIn().getHeader(CamelCMISConstants.CAMEL_CMIS_RETRIEVE_CONTENT, false, Boolean.class);
+        int readSize = exchange.getIn().getHeader(CamelCMISConstants.CAMEL_CMIS_READ_SIZE, 0, Integer.class);
 
         ItemIterable<QueryResult> itemIterable = cmisSessionFacade.executeQuery(query);
         List<Map<String, Object>> nodes = retriveResult(retrieveContent, readSize, itemIterable);
@@ -67,10 +65,10 @@ public class CMISQueryProducer extends DefaultProducer {
             ItemIterable<QueryResult> currentPage = itemIterable.skipTo(count).getPage();
             LOG.debug("Processing page " + pageNumber);
             for (QueryResult item : currentPage) {
-                Map<String, Object> properties = propertiesToMap(item.getProperties());
+                Map<String, Object> properties = CMISHelper.propertyDataToMap(item.getProperties());
                 if (retrieveContent) {
                     InputStream inputStream = this.cmisSessionFacade.getContentStreamFor(item);
-                    properties.put(CamelCMISParams.CAMEL_CMIS_CONTENT_STREAM, inputStream);
+                    properties.put(CamelCMISConstants.CAMEL_CMIS_CONTENT_STREAM, inputStream);
                 }
 
                 result.add(properties);
@@ -84,14 +82,6 @@ public class CMISQueryProducer extends DefaultProducer {
             if (!currentPage.getHasMoreItems()) {
                 finished = true;
             }
-        }
-        return result;
-    }
-
-    private Map<String, Object> propertiesToMap(List<PropertyData<?>> properties) {
-        Map result = new HashMap<String, Object>();
-        for (PropertyData propertyData : properties) {
-            result.put(propertyData.getId(), propertyData.getFirstValue());
         }
         return result;
     }
