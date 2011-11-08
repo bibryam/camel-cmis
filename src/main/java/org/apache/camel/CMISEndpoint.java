@@ -33,10 +33,6 @@ public class CMISEndpoint extends DefaultEndpoint {
         super(uri, component);
     }
 
-//    public CMISEndpoint(String endpointUri) {
-//        throw new UnsupportedOperationException("This constructor is not supported");
-//    }
-
     public CMISEndpoint(String uri, CMISComponent cmisComponent, CMISSessionFacade sessionFacade) {
         this(uri, cmisComponent);
         this.sessionFacade = sessionFacade;

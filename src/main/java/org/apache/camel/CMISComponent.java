@@ -28,7 +28,6 @@ public class CMISComponent extends DefaultComponent {
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
         boolean queryMode = removeQueryMode(parameters);
 
-
         CMISSessionFacade sessionFacade = new CMISSessionFacade(remaining);
         setProperties(sessionFacade, parameters);
         sessionFacade.initSession();

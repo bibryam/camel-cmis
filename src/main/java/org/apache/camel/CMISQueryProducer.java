@@ -20,11 +20,7 @@ import org.apache.camel.impl.DefaultProducer;
 import org.apache.camel.util.ExchangeHelper;
 import org.apache.chemistry.opencmis.client.api.ItemIterable;
 import org.apache.chemistry.opencmis.client.api.QueryResult;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
-import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +28,6 @@ import java.util.Map;
  * The CMIS Query producer.
  */
 public class CMISQueryProducer extends DefaultProducer {
-    private static final transient Log LOG = LogFactory.getLog(CMISQueryProducer.class);
     private final CMISSessionFacade cmisSessionFacade;
 
     public CMISQueryProducer(CMISEndpoint endpoint, CMISSessionFacade cmisSessionFacade) {
@@ -52,37 +47,6 @@ public class CMISQueryProducer extends DefaultProducer {
         int readSize = exchange.getIn().getHeader(CamelCMISConstants.CAMEL_CMIS_READ_SIZE, 0, Integer.class);
 
         ItemIterable<QueryResult> itemIterable = cmisSessionFacade.executeQuery(query);
-        List<Map<String, Object>> nodes = retriveResult(retrieveContent, readSize, itemIterable);
-        return nodes;
-    }
-
-    private List<Map<String, Object>> retriveResult(boolean retrieveContent, int readSize, ItemIterable<QueryResult> itemIterable) {
-        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
-        int count = 0;
-        int pageNumber = 0;
-        boolean finished = false;
-        while (!finished) {
-            ItemIterable<QueryResult> currentPage = itemIterable.skipTo(count).getPage();
-            LOG.debug("Processing page " + pageNumber);
-            for (QueryResult item : currentPage) {
-                Map<String, Object> properties = CMISHelper.propertyDataToMap(item.getProperties());
-                if (retrieveContent) {
-                    InputStream inputStream = this.cmisSessionFacade.getContentStreamFor(item);
-                    properties.put(CamelCMISConstants.CAMEL_CMIS_CONTENT_STREAM, inputStream);
-                }
-
-                result.add(properties);
-                count++;
-                if (count == readSize) {
-                    finished = true;
-                    break;
-                }
-            }
-            pageNumber++;
-            if (!currentPage.getHasMoreItems()) {
-                finished = true;
-            }
-        }
-        return result;
+        return cmisSessionFacade.retrieveResult(retrieveContent, readSize, itemIterable);
     }
 }

@@ -48,19 +48,8 @@ public class CMISConsumer extends ScheduledPollConsumer {
         Exchange exchange = getEndpoint().createExchange();
         exchange.getIn().setHeaders(properties);
         exchange.getIn().setBody(inputStream);
-        System.out.println("sesndind" + properties.get("cmis:name"));
         LOG.debug("Polling node : " + properties.get("cmis:name"));
         getProcessor().process(exchange);
         return 1;
-    }
-
-    @Override
-    public void beforePoll() throws Exception {
-        super.beforePoll();
-    }
-
-    @Override
-    public void afterPoll() throws Exception {
-        super.afterPoll();
     }
 }

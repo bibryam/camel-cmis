@@ -146,5 +146,4 @@ public class CMISProducer extends DefaultProducer {
         }
         return mimeType;
     }
-
 }

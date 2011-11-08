@@ -13,7 +13,9 @@ import org.apache.commons.logging.LogFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class CMISSessionFacade {
@@ -44,36 +46,6 @@ public class CMISSessionFacade {
         } else {
             this.session = SessionFactoryImpl.newInstance().getRepositories(parameter).get(0).createSession();
         }
-
-
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public void setRepositoryId(String repositoryId) {
-        this.repositoryId = repositoryId;
-    }
-
-    public void setReadContent(boolean readContent) {
-        this.readContent = readContent;
-    }
-
-    public void setReadCount(int readCount) {
-        this.readCount = readCount;
-    }
-
-    public void setQuery(String query) {
-        this.query = query;
-    }
-
-    public void setPageSize(int pageSize) {
-        this.pageSize = pageSize;
     }
 
     public int poll(CMISConsumer cmisConsumer) throws Exception {
@@ -85,73 +57,11 @@ public class CMISSessionFacade {
 
     private int pollTree(CMISConsumer cmisConsumer) throws Exception {
         Folder rootFolder = session.getRootFolder();
-        return processFolderRecursively(rootFolder, 0, cmisConsumer);
-    }
-
-    private int processFolderRecursively(Folder folder, int totalCount, CMISConsumer cmisConsumer) throws Exception {
-        totalCount += cmisConsumer.sendExchangeWithPropsAndBody(CMISHelper.objectProperties(folder), null);
-
-        OperationContext operationContext = new OperationContextImpl();
-        operationContext.setMaxItemsPerPage(pageSize);
-
-        int count = 0;
-        int pageNumber = 0;
-        boolean finished = false;
-        ItemIterable<CmisObject> itemIterable = folder.getChildren(operationContext);
-        while (!finished) {
-            ItemIterable<CmisObject> currentPage = itemIterable.skipTo(count).getPage();
-            LOG.debug("Processing page " + pageNumber);
-            for (CmisObject child : currentPage) {
-                if (isFolder(child)) {
-                    Folder childFolder = (Folder) child;
-                    totalCount = processFolderRecursively(childFolder, totalCount, cmisConsumer);
-                } else {
-                    totalCount += processNonFolderNode(child, folder, cmisConsumer);
-                }
-
-                count++;
-                if (totalCount == readCount) {
-                    finished = true;
-                    break;
-                }
-            }
-            pageNumber++;
-            if (!currentPage.getHasMoreItems()) {
-                finished = true;
-            }
-        }
-
-        return totalCount;
-    }
-
-    private boolean isFolder(CmisObject cmisObject) {
-        return CamelCMISConstants.CMIS_FOLDER.equals(getObjectTypeId(cmisObject));
-    }
-
-    private boolean isDocument(CmisObject cmisObject) {
-        return CamelCMISConstants.CMIS_DOCUMENT.equals(getObjectTypeId(cmisObject));
-    }
-
-    private Object getObjectTypeId(CmisObject child) {
-        return child.getPropertyValue(PropertyIds.OBJECT_TYPE_ID);//BASE_TYPE_ID?
-    }
-
-    private int processNonFolderNode(CmisObject cmisObject, Folder parentFolder, CMISConsumer cmisConsumer) throws Exception {
-        InputStream inputStream = null;
-        Map<String, Object> properties = CMISHelper.objectProperties(cmisObject);
-        properties.put("CamelCMISParentFolderPath", parentFolder.getPath());
-        if (isDocument(cmisObject) && readContent) {
-            ContentStream contentStream = ((Document) cmisObject).getContentStream();
-            if (contentStream != null) {
-                inputStream = contentStream.getStream();
-            }
-        }
-        return cmisConsumer.sendExchangeWithPropsAndBody(properties, inputStream);
+        RecursiveTreeWalker treeWalker = new RecursiveTreeWalker(cmisConsumer, readContent, readCount, pageSize);
+        return treeWalker.processFolderRecursively(rootFolder);
     }
 
     private int pollWithQuery(CMISConsumer cmisConsumer) throws Exception {
-        int sendCount = 0;
-        int readCount = 100;
         int count = 0;
         int pageNumber = 0;
         boolean finished = false;
@@ -167,8 +77,7 @@ public class CMISSessionFacade {
                     inputStream = getContentStreamFor(item);
                 }
 
-                System.out.println("processinbg " + count + "   " + properties);
-                sendCount += cmisConsumer.sendExchangeWithPropsAndBody(properties, inputStream);
+                cmisConsumer.sendExchangeWithPropsAndBody(properties, inputStream);
                 count++;
                 if (count == readCount) {
                     finished = true;
@@ -180,7 +89,38 @@ public class CMISSessionFacade {
                 finished = true;
             }
         }
-        return sendCount;
+        return count;
+    }
+
+    //some duplication
+    public List<Map<String, Object>> retrieveResult(boolean retrieveContent, int readSize, ItemIterable<QueryResult> itemIterable) {
+        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+        int count = 0;
+        int pageNumber = 0;
+        boolean finished = false;
+        while (!finished) {
+            ItemIterable<QueryResult> currentPage = itemIterable.skipTo(count).getPage();
+            LOG.debug("Processing page " + pageNumber);
+            for (QueryResult item : currentPage) {
+                Map<String, Object> properties = CMISHelper.propertyDataToMap(item.getProperties());
+                if (retrieveContent) {
+                    InputStream inputStream = getContentStreamFor(item);
+                    properties.put(CamelCMISConstants.CAMEL_CMIS_CONTENT_STREAM, inputStream);
+                }
+
+                result.add(properties);
+                count++;
+                if (count == readSize) {
+                    finished = true;
+                    break;
+                }
+            }
+            pageNumber++;
+            if (!currentPage.getHasMoreItems()) {
+                finished = true;
+            }
+        }
+        return result;
     }
 
     public ItemIterable<QueryResult> executeQuery(String query) {
@@ -211,13 +151,38 @@ public class CMISSessionFacade {
     }
 
     public boolean isObjectTypeVersionable(String objectType) {
-        return ((DocumentType)session.getTypeDefinition(objectType)).isVersionable();
+        return ((DocumentType) session.getTypeDefinition(objectType)).isVersionable();
     }
 
     public ContentStream createContentStream(String fileName, byte[] buf, String mimeType) throws Exception {
-        if (buf != null) {
-            return session.getObjectFactory().createContentStream(fileName, buf.length, mimeType, new ByteArrayInputStream(buf));
-        }
-        return null;
+        return buf != null ? session.getObjectFactory().createContentStream(fileName, buf.length, mimeType, new ByteArrayInputStream(buf)) : null;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public void setRepositoryId(String repositoryId) {
+        this.repositoryId = repositoryId;
+    }
+
+    public void setReadContent(boolean readContent) {
+        this.readContent = readContent;
+    }
+
+    public void setReadCount(int readCount) {
+        this.readCount = readCount;
+    }
+
+    public void setQuery(String query) {
+        this.query = query;
+    }
+
+    public void setPageSize(int pageSize) {
+        this.pageSize = pageSize;
     }
 }
