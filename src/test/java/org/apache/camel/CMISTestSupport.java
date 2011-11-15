@@ -10,8 +10,9 @@ import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.enums.BindingType;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.webapp.WebAppContext;
 
@@ -24,7 +25,7 @@ public class CMISTestSupport extends CamelTestSupport {
     protected static final String CMIS_ENDPOINT_TEST_SERVER = "http://localhost:9090/chemistry-opencmis-server-inmemory/atom";
     protected static final String openCmisServerWarPath = "target/dependency/chemistry-opencmis-server-inmemory-war-0.5.0.war";
 
-    protected Server cmisServer;
+    protected static Server cmisServer;
 
     protected Exchange createExchangeWithInBody(String body) {
         DefaultExchange exchange = new DefaultExchange(context);
@@ -38,7 +39,6 @@ public class CMISTestSupport extends CamelTestSupport {
         Session session = createSession();
         return session.getObject(nodeId);
     }
-
 
     protected void deleteAllContent() {
         Session session = createSession();
@@ -109,21 +109,24 @@ public class CMISTestSupport extends CamelTestSupport {
         newFolder.createDocument(properties, contentStream, VersioningState.NONE);
     }
 
-
-    @Override
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void startServer() throws Exception {
         cmisServer = new Server(9090);
         WebAppContext openCmisServerApi = new WebAppContext(openCmisServerWarPath, "/chemistry-opencmis-server-inmemory");
         cmisServer.addHandler(openCmisServerApi);
         cmisServer.start();
-        super.setUp();
+    }
+
+    @AfterClass
+    public static void stopServer() throws Exception {
+        cmisServer.stop();
     }
 
     @Override
-    @After
-    public void tearDown() throws Exception {
-        super.tearDown();
-        cmisServer.stop();
+    @Before
+    public void setUp() throws Exception {
+        deleteAllContent();
+        super.setUp();
     }
+
 }

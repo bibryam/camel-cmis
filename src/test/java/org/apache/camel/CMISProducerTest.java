@@ -128,7 +128,9 @@ public class CMISProducerTest extends CMISTestSupport {
 
     @Test
     public void createDocumentAtSpecificPath() throws Exception {
-        String existingFolderStructure = "/My_Folder-0-0/My_Folder-1-0/My_Folder-2-0";
+        Folder folder1 = createFolderWithName("Folder1");
+        Folder folder2 = createChildFolderWithName(folder1, "Folder2");
+        String existingFolderStructure = "/Folder1/Folder2";
 
         Exchange exchange = createExchangeWithInBody("Some content to be stored");
         exchange.getIn().getHeaders().put(PropertyIds.CONTENT_STREAM_MIME_TYPE, "text/plain; charset=UTF-8");
@@ -162,8 +164,6 @@ public class CMISProducerTest extends CMISTestSupport {
             public void configure() {
                 from("direct:start")
                         .to("cmis://" + CMIS_ENDPOINT_TEST_SERVER);
-                        //.to("cmis://" + "http://cmis.alfresco.com/cmisatom?username=admin&password=admin&repositoryId=371554cd-ac06-40ba-98b8-e6b60275cca7")
-                        //.to("mock:result");
             }
         };
     }
